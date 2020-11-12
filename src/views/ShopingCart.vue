@@ -34,16 +34,24 @@
                         <th>Action</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      <tr>
+                    <tbody v-if="keranjangUser.length > 0">
+                      <tr
+                        v-for="keranjang in keranjangUser"
+                        :key="keranjang.id"
+                      >
                         <td class="cart-pic first-row">
-                          <img src="img/cart-page/product-1.jpg" />
+                          <img :src="keranjang.foto" class="img-cart" />
                         </td>
                         <td class="cart-title first-row text-center">
-                          <h5>Pure Pineapple</h5>
+                          <h5>{{ keranjang.name }}</h5>
                         </td>
-                        <td class="p-price first-row">$60.00</td>
-                        <td class="delete-item">
+                        <td class="p-price first-row">
+                          $ {{ keranjang.price }}
+                        </td>
+                        <td
+                          class="delete-item"
+                          @click="removeItem(keranjang.index)"
+                        >
                           <a href="#"
                             ><i class="material-icons">
                               close
@@ -51,21 +59,10 @@
                           >
                         </td>
                       </tr>
+                    </tbody>
+                    <tbody v-else>
                       <tr>
-                        <td class="cart-pic first-row">
-                          <img src="img/cart-page/product-1.jpg" />
-                        </td>
-                        <td class="cart-title first-row text-center">
-                          <h5>Pure Pineapple</h5>
-                        </td>
-                        <td class="p-price first-row">$60.00</td>
-                        <td class="delete-item">
-                          <a href="#"
-                            ><i class="material-icons">
-                              close
-                            </i></a
-                          >
-                        </td>
+                        <td colspan="4" align="center">Keranjang kosong.</td>
                       </tr>
                     </tbody>
                   </table>
@@ -85,6 +82,7 @@
                         id="namaLengkap"
                         aria-describedby="namaHelp"
                         placeholder="Masukan Nama"
+                        v-model="customerInfo.name"
                       />
                     </div>
                     <div class="form-group">
@@ -95,6 +93,7 @@
                         id="emailAddress"
                         aria-describedby="emailHelp"
                         placeholder="Masukan Email"
+                        v-model="customerInfo.email"
                       />
                     </div>
                     <div class="form-group">
@@ -105,6 +104,7 @@
                         id="noHP"
                         aria-describedby="noHPHelp"
                         placeholder="Masukan No. HP"
+                        v-model="customerInfo.number"
                       />
                     </div>
                     <div class="form-group">
@@ -113,6 +113,7 @@
                         class="form-control"
                         id="alamatLengkap"
                         rows="3"
+                        v-model="customerInfo.address"
                       ></textarea>
                     </div>
                   </form>
@@ -128,10 +129,14 @@
                     <li class="subtotal">
                       ID Transaction <span>#SH12000</span>
                     </li>
-                    <li class="subtotal mt-3">Subtotal <span>$240.00</span></li>
-                    <li class="subtotal mt-3">Pajak <span>10%</span></li>
                     <li class="subtotal mt-3">
-                      Total Biaya <span>$440.00</span>
+                      Subtotal <span>$ {{ totalHarga }}</span>
+                    </li>
+                    <li class="subtotal mt-3">
+                      Pajak <span>10% {{ ditambahPajak }}</span>
+                    </li>
+                    <li class="subtotal mt-3">
+                      Total Biaya <span>$ {{ totalBiaya }}</span>
                     </li>
                     <li class="subtotal mt-3">
                       Bank Transfer <span>Mandiri</span>
@@ -143,9 +148,11 @@
                       Nama Penerima <span>Shayna</span>
                     </li>
                   </ul>
-                  <router-link to="/success" class="proceed-btn">
-                    I ALREADY PAID
-                  </router-link>
+                  <!-- <router-link to="/success" class="proceed-btn"> -->
+                  <a href="#" @click="checkout" class="proceed-btn"
+                    >I ALREADY PAID</a
+                  >
+                  <!-- </router-link> -->
                 </div>
               </div>
             </div>
@@ -159,12 +166,84 @@
 
 <script>
 import HeaderShayna from "@/components/HeaderShayna.vue";
+import axios from "axios";
+
 export default {
   name: "ShopingCart",
   components: {
     HeaderShayna,
   },
+  data() {
+    return {
+      keranjangUser: [],
+      customerInfo: {
+        name: "",
+        email: "",
+        number: "",
+        address: "",
+      },
+    };
+  },
+  methods: {
+    removeItem(index) {
+      this.keranjangUser.splice(index, 1);
+
+      const parsed = JSON.stringify(this.keranjangUser);
+      localStorage.setItem("keranjangUser", parsed);
+      this.$router.go(this.$router.currentRoute);
+    },
+    checkout() {
+      let productIds = this.keranjangUser.map(function(product) {
+        return product.id;
+      });
+
+      const { name, email, number, address } = this.customerInfo;
+      let checkoutData = {
+        name,
+        email,
+        number,
+        address,
+        transaction_total: this.totalHarga,
+        transaction_status: "PENDING",
+        transaction_details: productIds,
+      };
+
+      axios
+        .post("http://localhost:8000/api/checkout/", checkoutData)
+        .then(() => {
+          this.$router.push("success");
+        })
+        .catch((err) => console.log(err));
+    },
+  },
+  mounted() {
+    if (localStorage.getItem("keranjangUser")) {
+      try {
+        this.keranjangUser = JSON.parse(localStorage.getItem("keranjangUser"));
+      } catch (error) {
+        localStorage.removeItem("keranjangUser");
+      }
+    }
+  },
+  computed: {
+    totalHarga() {
+      return this.keranjangUser.reduce(function(items, data) {
+        return items + data.price;
+      }, 0);
+    },
+    ditambahPajak() {
+      return (this.totalHarga * 10) / 100;
+    },
+    totalBiaya() {
+      return this.totalHarga + this.ditambahPajak;
+    },
+  },
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+.img-cart {
+  width: 80px;
+  height: 80px;
+}
+</style>

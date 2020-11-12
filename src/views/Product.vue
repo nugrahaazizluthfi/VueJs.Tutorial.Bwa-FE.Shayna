@@ -29,46 +29,24 @@
                 <div class="product-pic-zoom">
                   <img class="product-big-img" :src="gambar_default" alt="" />
                 </div>
-                <div class="product-thumbs">
+                <div
+                  class="product-thumbs"
+                  v-if="productDetail.galleries.length > 0"
+                >
                   <carousel
                     class="product-thumbs-track ps-slider"
                     :dots="false"
                     :nav="false"
                   >
                     <div
+                      v-for="thumb in productDetail.galleries"
+                      :key="thumb.id"
                       :class="
-                        `pt ${thumbs[0] == gambar_default ? 'active' : ''}`
+                        `pt ${thumb.foto == gambar_default ? 'active' : ''}`
                       "
-                      @click="changeImage(thumbs[0])"
+                      @click="changeImage(thumb.foto)"
                     >
-                      <img src="img/mickey1.jpg" alt="" />
-                    </div>
-
-                    <div
-                      :class="
-                        `pt ${thumbs[1] == gambar_default ? 'active' : ''}`
-                      "
-                      @click="changeImage(thumbs[1])"
-                    >
-                      <img src="img/mickey2.jpg" alt="" />
-                    </div>
-
-                    <div
-                      :class="
-                        `pt ${thumbs[2] == gambar_default ? 'active' : ''}`
-                      "
-                      @click="changeImage(thumbs[2])"
-                    >
-                      <img src="img/mickey3.jpg" alt="" />
-                    </div>
-
-                    <div
-                      :class="
-                        `pt ${thumbs[3] == gambar_default ? 'active' : ''}`
-                      "
-                      @click="changeImage(thumbs[3])"
-                    >
-                      <img src="img/mickey4.jpg" alt="" />
+                      <img :src="thumb.foto" alt="" />
                     </div>
                   </carousel>
                 </div>
@@ -76,38 +54,29 @@
               <div class="col-lg-6">
                 <div class="product-details text-left">
                   <div class="pd-title">
-                    <span>oranges</span>
-                    <h3>Pure Pineapple</h3>
+                    <span>{{ productDetail.type }}</span>
+                    <h3>{{ productDetail.name }}</h3>
                   </div>
                   <div class="pd-desc">
-                    <p>
-                      Lorem ipsum dolor sit amet consectetur adipisicing elit.
-                      Corporis, error officia. Rem aperiam laborum voluptatum
-                      vel, pariatur modi hic provident eum iure natus quos non a
-                      sequi, id accusantium! Autem.
-                    </p>
-                    <p>
-                      Lorem ipsum dolor sit, amet consectetur adipisicing elit.
-                      Quam possimus quisquam animi, commodi, nihil voluptate
-                      nostrum neque architecto illo officiis doloremque et
-                      corrupti cupiditate voluptatibus error illum. Commodi
-                      expedita animi nulla aspernatur. Id asperiores blanditiis,
-                      omnis repudiandae iste inventore cum, quam sint molestiae
-                      accusamus voluptates ex tempora illum sit perspiciatis.
-                      Nostrum dolor tenetur amet, illo natus magni veniam quia
-                      sit nihil dolores. Commodi ratione distinctio harum
-                      voluptatum velit facilis voluptas animi non laudantium, id
-                      dolorem atque perferendis enim ducimus? A exercitationem
-                      recusandae aliquam quod. Itaque inventore obcaecati, unde
-                      quam impedit praesentium veritatis quis beatae ea atque
-                      perferendis voluptates velit architecto?
-                    </p>
-                    <h4>$495.00</h4>
+                    <div v-html="productDetail.description"></div>
+                    <h4>$ {{ productDetail.price }}</h4>
                   </div>
                   <div class="quantity">
-                    <router-link to="/cart" class="primary-btn pd-cart">
-                      Add To Cart
-                    </router-link>
+                    <!-- <router-link to="/cart" class="primary-btn pd-cart"> -->
+                    <a
+                      href="#"
+                      @click="
+                        saveKeranjang(
+                          productDetail.id,
+                          productDetail.name,
+                          productDetail.price,
+                          gambar_default
+                        )
+                      "
+                      class="primary-btn pd-cart"
+                      >Add To Cart</a
+                    >
+                    <!-- </router-link> -->
                   </div>
                 </div>
               </div>
@@ -136,6 +105,8 @@ import HeaderShayna from "@/components/HeaderShayna.vue";
 import FooterShayna from "@/components/FooterShayna.vue";
 import RelatedShayna from "@/components/RelatedShayna.vue";
 
+import axios from "axios";
+
 export default {
   name: "Product",
   components: {
@@ -147,18 +118,49 @@ export default {
   data() {
     return {
       gambar_default: "img/mickey1.jpg",
-      thumbs: [
-        "img/mickey1.jpg",
-        "img/mickey2.jpg",
-        "img/mickey3.jpg",
-        "img/mickey4.jpg",
-      ],
+      productDetail: [],
+      keranjangUser: [],
     };
   },
   methods: {
     changeImage(urlImage) {
       this.gambar_default = urlImage;
+      console.log(this.productId);
     },
+    setDataPicture(data) {
+      let picDefault = data.filter((data) => data.is_default == 1);
+      this.gambar_default = picDefault[0].foto;
+    },
+    saveKeranjang(id, name, price, foto) {
+      let productStored = { id, name, price, foto };
+
+      this.keranjangUser.push(productStored);
+      const parsed = JSON.stringify(this.keranjangUser);
+      localStorage.setItem("keranjangUser", parsed);
+      this.$router.go(this.$router.currentRoute);
+    },
+  },
+  mounted() {
+    if (localStorage.getItem("keranjangUser")) {
+      try {
+        this.keranjangUser = JSON.parse(localStorage.getItem("keranjangUser"));
+      } catch (error) {
+        localStorage.removeItem("keranjangUser");
+      }
+    }
+
+    axios
+      .get("http://localhost:8000/api/products/", {
+        params: {
+          id: this.$route.params.id,
+        },
+      })
+      .then((res) => {
+        const { data } = res.data;
+        this.productDetail = data;
+        this.setDataPicture(data.galleries);
+      })
+      .catch((err) => console.log(err));
   },
 };
 </script>
